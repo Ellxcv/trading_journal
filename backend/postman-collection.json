@@ -1,0 +1,312 @@
+{
+  "info": {
+    "name": "Trading Journal API",
+    "_postman_id": "trading-journal-api",
+    "description": "API Collection for Trading Journal & Analytics Platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000/api"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    },
+    {
+      "key": "trade_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('access_token', response.access_token);",
+                  "    pm.environment.set('user_id', response.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"trader@example.com\",\n  \"password\": \"Password123!\",\n  \"name\": \"John Trader\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('access_token', response.access_token);",
+                  "    pm.environment.set('user_id', response.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"trader@example.com\",\n  \"password\": \"Password123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trades",
+      "item": [
+        {
+          "name": "Create Trade",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('trade_id', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"BTCUSDT\",\n  \"type\": \"LONG\",\n  \"status\": \"CLOSED\",\n  \"entryPrice\": 45000,\n  \"entryDate\": \"2024-01-15T10:00:00Z\",\n  \"quantity\": 0.1,\n  \"exitPrice\": 46500,\n  \"exitDate\": \"2024-01-16T14:30:00Z\",\n  \"stopLoss\": 44000,\n  \"takeProfit\": 47000,\n  \"commission\": 10,\n  \"notes\": \"Breakout trade on 4H timeframe\",\n  \"strategy\": \"Breakout\",\n  \"timeframe\": \"4H\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/trades",
+              "host": ["{{base_url}}"],
+              "path": ["trades"]
+            }
+          }
+        },
+        {
+          "name": "Get All Trades",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/trades?page=1&limit=10&sortBy=entryDate&sortOrder=desc",
+              "host": ["{{base_url}}"],
+              "path": ["trades"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "entryDate"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc"
+                },
+                {
+                  "key": "symbol",
+                  "value": "BTC",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "LONG",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "CLOSED",
+                  "disabled": true
+                },
+                {
+                  "key": "profitability",
+                  "value": "winning",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Trade Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/trades/statistics",
+              "host": ["{{base_url}}"],
+              "path": ["trades", "statistics"]
+            }
+          }
+        },
+        {
+          "name": "Get Trade by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/trades/{{trade_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["trades", "{{trade_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Trade",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exitPrice\": 47000,\n  \"exitDate\": \"2024-01-17T10:00:00Z\",\n  \"notes\": \"Updated exit price - hit take profit\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/trades/{{trade_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["trades", "{{trade_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Trade",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/trades/{{trade_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["trades", "{{trade_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Get Overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/overview",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "overview"]
+            }
+          }
+        },
+        {
+          "name": "Get Performance Chart",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/performance-chart",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "performance-chart"]
+            }
+          }
+        },
+        {
+          "name": "Get Monthly Performance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/monthly-performance",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "monthly-performance"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

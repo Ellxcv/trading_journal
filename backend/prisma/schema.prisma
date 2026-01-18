@@ -1,0 +1,175 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum TradeType {
+  LONG
+  SHORT
+}
+
+enum TradeStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+enum TagType {
+  STRATEGY
+  MARKET
+  SETUP
+  TIMEFRAME
+  OTHER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trades     Trade[]
+  portfolios Portfolio[]
+  tags       Tag[]
+
+  @@map("users")
+}
+
+model Trade {
+  id String @id @default(cuid())
+
+  // User relationship
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Portfolio relationship
+  portfolioId String?
+  portfolio   Portfolio? @relation(fields: [portfolioId], references: [id], onDelete: SetNull)
+
+  // Trade details
+  symbol      String
+  type        TradeType
+  status      TradeStatus @default(CLOSED)
+  
+  // Entry details
+  entryPrice  Decimal     @db.Decimal(18, 8)
+  entryDate   DateTime
+  quantity    Decimal     @db.Decimal(18, 8)
+  
+  // Exit details
+  exitPrice   Decimal?    @db.Decimal(18, 8)
+  exitDate    DateTime?
+  
+  // Risk management
+  stopLoss    Decimal?    @db.Decimal(18, 8)
+  takeProfit  Decimal?    @db.Decimal(18, 8)
+  
+  // Financial calculations
+  profitLoss  Decimal?    @db.Decimal(18, 8)
+  commission  Decimal?    @db.Decimal(18, 8)
+  netProfitLoss Decimal?  @db.Decimal(18, 8)
+  
+  // Trade metadata
+  notes       String?     @db.Text
+  screenshots String[]    // Array of image URLs
+  strategy    String?
+  timeframe   String?
+  
+  // Timestamps
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Tags relationship
+  tags        Tag[]       @relation("TradeTags")
+
+  @@index([userId])
+  @@index([portfolioId])
+  @@index([symbol])
+  @@index([entryDate])
+  @@index([status])
+  @@map("trades")
+}
+
+model Portfolio {
+  id             String   @id @default(cuid())
+  
+  // User relationship
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Portfolio details
+  name           String
+  description    String?  @db.Text
+  initialBalance Decimal  @db.Decimal(18, 8)
+  currentBalance Decimal  @db.Decimal(18, 8)
+  currency       String   @default("USD")
+  
+  // Timestamps
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relationships
+  trades         Trade[]
+  history        PortfolioHistory[]
+
+  @@index([userId])
+  @@map("portfolios")
+}
+
+model PortfolioHistory {
+  id          String    @id @default(cuid())
+  
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  
+  balance     Decimal   @db.Decimal(18, 8)
+  equity      Decimal?  @db.Decimal(18, 8)
+  date        DateTime  @default(now())
+  notes       String?   @db.Text
+  
+  createdAt   DateTime  @default(now())
+
+  @@index([portfolioId])
+  @@index([date])
+  @@map("portfolio_history")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  
+  // User relationship
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Tag details
+  name      String
+  type      TagType  @default(OTHER)
+  color     String?  // Hex color code
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  trades    Trade[]  @relation("TradeTags")
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([type])
+  @@map("tags")
+}

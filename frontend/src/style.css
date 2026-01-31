@@ -215,6 +215,20 @@ code {
 }
 
 /* Glass morphism effect */
+.glass-card {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15);
+}
+
 .glass {
   background: var(--glass-bg);
   backdrop-filter: blur(10px);

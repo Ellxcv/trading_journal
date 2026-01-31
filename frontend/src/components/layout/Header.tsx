@@ -1,53 +1,107 @@
 import React from 'react';
-import { LogOut, User } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
-import { Button } from '../ui';
+import { useLocation } from 'react-router-dom';
+import { DollarSign, Calendar, Wallet } from 'lucide-react';
+import { useFilters } from '../../hooks';
+
+// Helper to get page title from path
+const getPageTitle = (pathname: string): string => {
+  const routes: Record<string, string> = {
+    '/dashboard': 'Dashboard',
+    '/trades': 'Trades',
+    '/analytics': 'Analytics',
+    '/portfolios': 'Portfolios',
+    '/tags': 'Tags',
+  };
+  return routes[pathname] || 'Dashboard';
+};
 
 export const Header: React.FC = () => {
-  const { user, logout } = useAuth();
+  const location = useLocation();
+  const pageTitle = getPageTitle(location.pathname);
+
+  // Use global filter context
+  const { 
+    currency, 
+    setCurrency, 
+    dateRange, 
+    setDateRange, 
+    selectedAccount, 
+    setSelectedAccount 
+  } = useFilters();
+
+  // Mock data - will be replaced with real data from API
+  const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'IDR'];
+  const accounts = [
+    { id: 'main', name: 'Main Account', balance: '$10,245' },
+    { id: 'demo', name: 'Demo Account', balance: '$50,000' },
+    { id: 'swing', name: 'Swing Trading', balance: '$5,120' },
+  ];
+  const dateRanges = ['Today', 'This Week', 'This Month', 'This Year', 'All Time', 'Custom'];
 
   return (
     <header className="h-16 bg-[var(--color-surface)] border-b border-[var(--color-border)] flex items-center justify-between px-6">
+      {/* Left: Page Title */}
       <div>
-        <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">
-          Welcome back{user?.name ? `, ${user.name}` : ''}
+        <h2 className="text-2xl font-bold text-[var(--color-text-primary)]">
+          {pageTitle}
         </h2>
-        <p className="text-sm text-[var(--color-text-muted)]">
-          {new Date().toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}
-        </p>
       </div>
 
-      <div className="flex items-center gap-4">
-        {/* User info */}
-        <div className="flex items-center gap-3 px-4 py-2 bg-[var(--color-surface-light)] rounded-lg">
-          <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center">
-            <User size={18} className="text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-[var(--color-text-primary)]">
-              {user?.name || user?.email}
-            </p>
-            <p className="text-xs text-[var(--color-text-muted)]">
-              {user?.role}
-            </p>
-          </div>
+      {/* Right: Filters Only */}
+      <div className="flex items-center gap-3">
+        {/* Currency Selector */}
+        <div className="relative">
+          <button className="flex items-center gap-2 px-3 py-2 bg-[var(--color-surface-light)] hover:bg-[var(--color-border)] rounded-lg transition-colors group">
+            <DollarSign size={18} className="text-[var(--color-primary)]" />
+            <select
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              className="bg-transparent text-sm font-medium text-[var(--color-text-primary)] outline-none cursor-pointer pr-2"
+            >
+              {currencies.map((currency) => (
+                <option key={currency} value={currency} className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">
+                  {currency}
+                </option>
+              ))}
+            </select>
+          </button>
         </div>
 
-        {/* Logout button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={logout}
-          className="gap-2"
-        >
-          <LogOut size={16} />
-          Logout
-        </Button>
+        {/* Date Range Picker */}
+        <div className="relative">
+          <button className="flex items-center gap-2 px-3 py-2 bg-[var(--color-surface-light)] hover:bg-[var(--color-border)] rounded-lg transition-colors">
+            <Calendar size={18} className="text-[var(--color-primary)]" />
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              className="bg-transparent text-sm font-medium text-[var(--color-text-primary)] outline-none cursor-pointer pr-2"
+            >
+              {dateRanges.map((range) => (
+                <option key={range} value={range} className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">
+                  {range}
+                </option>
+              ))}
+            </select>
+          </button>
+        </div>
+
+        {/* Trading Account Selector */}
+        <div className="relative">
+          <button className="flex items-center gap-2 px-3 py-2 bg-[var(--color-surface-light)] hover:bg-[var(--color-border)] rounded-lg transition-colors min-w-[180px]">
+            <Wallet size={18} className="text-[var(--color-primary)]" />
+            <select
+              value={selectedAccount}
+              onChange={(e) => setSelectedAccount(e.target.value)}
+              className="bg-transparent text-sm font-medium text-[var(--color-text-primary)] outline-none cursor-pointer flex-1"
+            >
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id} className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">
+                  {account.name}
+                </option>
+              ))}
+            </select>
+          </button>
+        </div>
       </div>
     </header>
   );

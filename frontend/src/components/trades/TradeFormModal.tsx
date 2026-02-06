@@ -39,6 +39,16 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
 
   useEffect(() => {
     if (initialData) {
+      const formattedData = {
+        ...initialData,
+        // Ensure dates are properly formatted for datetime-local input
+        openDate: initialData.openDate 
+          ? new Date(initialData.openDate).toISOString().slice(0, 16)
+          : new Date().toISOString().slice(0, 16),
+        closeDate: initialData.closeDate
+          ? new Date(initialData.closeDate).toISOString().slice(0, 16)
+          : undefined,
+      };
       setFormData({
         symbol: '',
         direction: 'LONG',
@@ -46,7 +56,7 @@ export const TradeFormModal: React.FC<TradeFormModalProps> = ({
         openDate: new Date().toISOString().slice(0, 16),
         entryPrice: 0,
         lots: 0.01,
-        ...initialData,
+        ...formattedData,
       });
       setAttachments(initialData.attachments || []);
     }

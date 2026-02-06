@@ -58,6 +58,21 @@ export class CreateTradeDto {
   @IsOptional()
   commission?: number;
 
+  @IsNumber()
+  @Type(() => Number)
+  @IsOptional()
+  swap?: number;
+
+  @IsNumber()
+  @Type(() => Number)
+  @IsOptional()
+  profitLoss?: number;
+
+  @IsNumber()
+  @Type(() => Number)
+  @IsOptional()
+  netProfitLoss?: number;
+
   @IsString()
   @IsOptional()
   notes?: string;
@@ -69,6 +84,18 @@ export class CreateTradeDto {
   @IsString()
   @IsOptional()
   timeframe?: string;
+
+  @IsString()
+  @IsOptional()
+  exitReason?: string;
+
+  @IsString()
+  @IsOptional()
+  mistakes?: string;
+
+  @IsString()
+  @IsOptional()
+  lessonsLearned?: string;
 
   @IsString()
   @IsOptional()

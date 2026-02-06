@@ -36,7 +36,7 @@ export const CumulativePnLChart: React.FC<CumulativePnLChartProps> = ({ data }) 
             }}
             labelStyle={{ color: 'var(--color-text-primary)' }}
             itemStyle={{ color: 'var(--color-primary)' }}
-            formatter={(value: number) => [`$${value.toFixed(2)}`, 'P&L']}
+            formatter={(value: number | undefined) => [`$${(value || 0).toFixed(2)}`, 'P&L']}
           />
           <Line 
             type="monotone" 

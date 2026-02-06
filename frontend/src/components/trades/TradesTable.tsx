@@ -24,14 +24,25 @@ export const TradesTable: React.FC<TradesTableProps> = ({
     });
   };
 
-  const formatPrice = (price: number) => {
-    return price.toFixed(5);
+  const formatPrice = (price: any) => {
+    // Convert Prisma Decimal to number
+    const num = typeof price === 'number' ? price : Number(price);
+    return num.toFixed(5);
   };
 
-  const formatPnL = (pnl: number | undefined) => {
-    if (pnl === undefined) return '-';
-    const sign = pnl >= 0 ? '+' : '';
-    return `${sign}$${pnl.toFixed(2)}`;
+  const formatPnL = (pnl: any) => {
+    if (pnl === undefined || pnl === null) return '-';
+    // Convert Prisma Decimal to number
+    const num = typeof pnl === 'number' ? pnl : Number(pnl);
+    const sign = num >= 0 ? '+' : '';
+    return `${sign}$${num.toFixed(2)}`;
+  };
+
+  const formatNumber = (value: any) => {
+    if (value === undefined || value === null) return '-';
+    // Convert Prisma Decimal to number
+    const num = typeof value === 'number' ? value : Number(value);
+    return num.toFixed(2);
   };
 
   return (
@@ -118,13 +129,13 @@ export const TradesTable: React.FC<TradesTableProps> = ({
                     {trade.exitPrice ? formatPrice(trade.exitPrice) : '-'}
                   </td>
                   <td className="py-3 px-4 text-right text-sm text-[var(--color-text-secondary)]">
-                    {trade.lots.toFixed(2)}
+                    {formatNumber(trade.lots)}
                   </td>
                   <td className={`py-3 px-4 text-right text-sm font-bold ${pnlColor}`}>
                     {formatPnL(trade.netPnL)}
                   </td>
                   <td className="py-3 px-4 text-right text-sm text-[var(--color-text-secondary)]">
-                    {trade.riskRewardRatio ? trade.riskRewardRatio.toFixed(2) : '-'}
+                    {formatNumber(trade.riskRewardRatio)}
                   </td>
                   <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-2">

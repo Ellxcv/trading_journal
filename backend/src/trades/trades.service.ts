@@ -12,18 +12,25 @@ export class TradesService {
   async create(userId: string, createTradeDto: CreateTradeDto) {
     const { tagIds, ...tradeData } = createTradeDto;
 
-    // Calculate P&L if exit price is provided
+    // Use provided P&L values if available (from broker import)
+    // Otherwise calculate P&L if exit price is provided
     let profitLoss: number | null = null;
     let netProfitLoss: number | null = null;
 
-    if (tradeData.exitPrice) {
+    if (tradeData.netProfitLoss !== undefined && tradeData.netProfitLoss !== null) {
+      // Use broker-provided P&L (accurate for all instrument types)
+      netProfitLoss = Number(tradeData.netProfitLoss);
+      profitLoss = tradeData.profitLoss !== undefined ? Number(tradeData.profitLoss) : netProfitLoss;
+    } else if (tradeData.exitPrice) {
+      // Calculate P&L (for manual entries)
       const priceDiff =
         tradeData.type === 'LONG'
           ? Number(tradeData.exitPrice) - Number(tradeData.entryPrice)
           : Number(tradeData.entryPrice) - Number(tradeData.exitPrice);
 
       profitLoss = priceDiff * Number(tradeData.quantity);
-      netProfitLoss = profitLoss - (Number(tradeData.commission) || 0);
+      // Net P&L includes commission AND swap
+      netProfitLoss = profitLoss - (Number(tradeData.commission) || 0) - (Number(tradeData.swap) || 0);
     }
 
     // Create trade with tags connection
@@ -72,16 +79,6 @@ export class TradesService {
       ...(status && { status }),
       ...(strategy && { strategy: { contains: strategy, mode: 'insensitive' } }),
       ...(portfolioId && { portfolioId }),
-      ...(startDate && {
-        entryDate: {
-          gte: new Date(startDate),
-        },
-      }),
-      ...(endDate && {
-        entryDate: {
-          lte: new Date(endDate),
-        },
-      }),
       ...(profitability === 'winning' && {
         netProfitLoss: { gt: 0 },
       }),
@@ -89,6 +86,25 @@ export class TradesService {
         netProfitLoss: { lt: 0 },
       }),
     };
+
+    // Handle date filtering with proper timezone handling
+    if (startDate || endDate) {
+      where.entryDate = {};
+      
+      if (startDate) {
+        // Start of day for startDate
+        const startDateTime = new Date(startDate);
+        startDateTime.setHours(0, 0, 0, 0);
+        where.entryDate.gte = startDateTime;
+      }
+      
+      if (endDate) {
+        // End of day for endDate (23:59:59.999) to include all trades from that day
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        where.entryDate.lte = endDateTime;
+      }
+    }
 
     // Calculate pagination
     const skip = (page - 1) * limit;
@@ -160,10 +176,16 @@ export class TradesService {
 
     const { tagIds, ...tradeData } = updateTradeDto;
 
-    // Recalculate P&L if relevant fields are updated
+    // Recalculate P&L if relevant fields are updated (and P&L not provided)
     let updateData: any = { ...tradeData };
 
-    if (
+    // Use provided P&L if available (from broker import or manual entry)
+    if (updateTradeDto.netProfitLoss !== undefined && updateTradeDto.netProfitLoss !== null) {
+      updateData.netProfitLoss = Number(updateTradeDto.netProfitLoss);
+      if (updateTradeDto.profitLoss !== undefined) {
+        updateData.profitLoss = Number(updateTradeDto.profitLoss);
+      }
+    } else if (
       updateTradeDto.exitPrice !== undefined ||
       updateTradeDto.entryPrice !== undefined ||
       updateTradeDto.quantity !== undefined ||
@@ -191,7 +213,8 @@ export class TradesService {
             : entryPrice - exitPrice;
 
         const profitLoss = priceDiff * quantity;
-        const netProfitLoss = profitLoss - commission;
+        const swap = updateTradeDto.swap ?? (currentTrade.swap ? Number(currentTrade.swap) : 0);
+        const netProfitLoss = profitLoss - commission - swap;
 
         updateData.profitLoss = profitLoss;
         updateData.netProfitLoss = netProfitLoss;
@@ -278,5 +301,22 @@ export class TradesService {
       largestWin: winningTrades.length > 0 ? Math.max(...winningTrades.map((t) => Number(t.netProfitLoss))) : 0,
       largestLoss: losingTrades.length > 0 ? Math.min(...losingTrades.map((t) => Number(t.netProfitLoss))) : 0,
     };
+  }
+
+  // Bulk create trades (for importing from broker)
+  async bulkCreate(userId: string, createTradeDtos: CreateTradeDto[]) {
+    const createdTrades: any[] = [];
+    
+    for (const createTradeDto of createTradeDtos) {
+      try {
+        const trade = await this.create(userId, createTradeDto);
+        createdTrades.push(trade);
+      } catch (error) {
+        console.error('Failed to create trade:', error);
+        // Continue with other trades even if one fails
+      }
+    }
+    
+    return createdTrades;
   }
 }

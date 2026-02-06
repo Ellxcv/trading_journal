@@ -1,139 +1,16 @@
 import React, { useState } from 'react';
-import { Plus, Upload, TrendingUp, TrendingDown, Activity, DollarSign, Target } from 'lucide-react';
+import { Plus, Upload, TrendingUp, Activity, DollarSign, Target } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Trade, TradeFilters as TradeFiltersType, TradeFormData } from '../types/trade';
 import { TradeFilters, TradesTable, TradeDetailModal, TradeFormModal, TradeImport } from '../components/trades';
 import { StatCard } from '../components/dashboard';
 import { Button, Modal } from '../components/ui';
 import { ParsedTrade } from '../utils/tradeParser';
-
-// Mock data - will be replaced with real API calls
-const mockTrades: Trade[] = [
-  {
-    id: 1,
-    symbol: 'EURUSD',
-    direction: 'LONG',
-    status: 'CLOSED',
-    openDate: '2026-01-28T09:30:00',
-    closeDate: '2026-01-28T15:45:00',
-    entryPrice: 1.08450,
-    exitPrice: 1.08720,
-    stopLoss: 1.08200,
-    takeProfit: 1.08800,
-    lots: 0.10,
-    commission: 5.00,
-    swap: 0,
-    grossPnL: 270.00,
-    netPnL: 265.00,
-    pnlPercentage: 24.42,
-    riskRewardRatio: 1.4,
-    pips: 27.0,
-    setup: 'Breakout',
-    entryReason: 'Clean breakout above resistance with strong momentum',
-    exitReason: 'Hit target at previous high',
-    tags: ['Scalp', 'Trend'],
-    createdAt: '2026-01-28T09:30:00',
-    updatedAt: '2026-01-28T15:45:00',
-  },
-  {
-    id: 2,
-    symbol: 'GBPUSD',
-    direction: 'SHORT',
-    status: 'CLOSED',
-    openDate: '2026-01-27T14:15:00',
-    closeDate: '2026-01-27T16:30:00',
-    entryPrice: 1.27850,
-    exitPrice: 1.27950,
-    stopLoss: 1.28100,
-    takeProfit: 1.27500,
-    lots: 0.15,
-    commission: 7.50,
-    swap: -2.50,
-    grossPnL: -150.00,
-    netPnL: -160.00,
-    pnlPercentage: -11.76,
-    riskRewardRatio: 0.4,
-    pips: -10.0,
-    setup: 'Reversal',
-    entryReason: 'Double top formation at resistance',
-    exitReason: 'Stop loss hit - trend too strong',
-    mistakes: 'Traded against the trend, should have waited for confirmation',
-    lessonsLearned: 'Never trade reversals in strong trends without multiple confirmations',
-    tags: ['Loss', 'Reversal'],
-    createdAt: '2026-01-27T14:15:00',
-    updatedAt: '2026-01-27T16:30:00',
-  },
-  {
-    id: 3,
-    symbol: 'USDJPY',
-    direction: 'LONG',
-    status: 'OPEN',
-    openDate: '2026-01-31T08:00:00',
-    entryPrice: 149.250,
-    stopLoss: 148.900,
-    takeProfit: 150.000,
-    lots: 0.20,
-    setup: 'Pullback',
-    entryReason: 'Pullback to support in uptrend, bullish engulfing candle',
-    tags: ['Open', 'Swing'],
-    createdAt: '2026-01-31T08:00:00',
-    updatedAt: '2026-01-31T08:00:00',
-  },
-  {
-    id: 4,
-    symbol: 'AUDUSD',
-    direction: 'LONG',
-    status: 'CLOSED',
-    openDate: '2026-01-26T11:00:00',
-    closeDate: '2026-01-26T17:20:00',
-    entryPrice: 0.64850,
-    exitPrice: 0.65120,
-    stopLoss: 0.64600,
-    takeProfit: 0.65200,
-    lots: 0.12,
-    commission: 6.00,
-    swap: 0,
-    grossPnL: 324.00,
-    netPnL: 318.00,
-    pnlPercentage: 41.60,
-    riskRewardRatio: 1.08,
-    pips: 27.0,
-    setup: 'Channel Trading',
-    entryReason: 'Bounce from bottom of ascending channel',
-    exitReason: '90% of target reached, secured profit',
-    tags: ['Swing', 'Channel'],
-    createdAt: '2026-01-26T11:00:00',
-    updatedAt: '2026-01-26T17:20:00',
-  },
-  {
-    id: 5,
-    symbol: 'NZDUSD',
-    direction: 'SHORT',
-    status: 'CLOSED',
-    openDate: '2026-01-25T13:45:00',
-    closeDate: '2026-01-25T14:30:00',
-    entryPrice: 0.58950,
-    exitPrice: 0.58880,
-    stopLoss: 0.59100,
-    takeProfit: 0.58600,
-    lots: 0.08,
-    commission: 4.00,
-    swap: 0,
-    grossPnL: 56.00,
-    netPnL: 52.00,
-    pnlPercentage: 11.86,
-    riskRewardRatio: 0.47,
-    pips: 7.0,
-    setup: 'Scalp',
-    entryReason: 'Quick scalp on rejection from resistance',
-    exitReason: 'Partial target hit, trend weakening',
-    tags: ['Scalp', 'Quick'],
-    createdAt: '2026-01-25T13:45:00',
-    updatedAt: '2026-01-25T14:30:00',
-  },
-];
+import { tradesApi } from '../services/tradesApi';
 
 export const TradesPage: React.FC = () => {
-  const [trades, setTrades] = useState<Trade[]>(mockTrades);
+  const queryClient = useQueryClient();
+  
   const [filters, setFilters] = useState<TradeFiltersType>({
     search: '',
     status: 'ALL',
@@ -149,82 +26,90 @@ export const TradesPage: React.FC = () => {
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
 
-  // Filter trades based on filters
-  const filteredTrades = trades.filter(trade => {
-    // Search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      const matchesSearch = 
-        trade.symbol.toLowerCase().includes(searchLower) ||
-        trade.entryReason?.toLowerCase().includes(searchLower) ||
-        trade.exitReason?.toLowerCase().includes(searchLower) ||
-        trade.tags?.some(tag => tag.toLowerCase().includes(searchLower));
-      
-      if (!matchesSearch) return false;
-    }
-
-    // Status filter
-    if (filters.status !== 'ALL' && trade.status !== filters.status) {
-      return false;
-    }
-
-    // Direction filter
-    if (filters.direction !== 'ALL' && trade.direction !== filters.direction) {
-      return false;
-    }
-
-    // Profit/Loss filter
-    if (filters.profitLoss !== 'ALL') {
-      if (filters.profitLoss === 'PROFIT' && (!trade.netPnL || trade.netPnL <= 0)) {
-        return false;
-      }
-      if (filters.profitLoss === 'LOSS' && (!trade.netPnL || trade.netPnL >= 0)) {
-        return false;
-      }
-    }
-
-    // Date range filter
-    if (filters.dateFrom) {
-      const tradeDate = new Date(trade.closeDate || trade.openDate);
-      const fromDate = new Date(filters.dateFrom);
-      if (tradeDate < fromDate) return false;
-    }
-
-    if (filters.dateTo) {
-      const tradeDate = new Date(trade.closeDate || trade.openDate);
-      const toDate = new Date(filters.dateTo);
-      if (tradeDate > toDate) return false;
-    }
-
-    return true;
+  // Fetch trades with filters
+  const { data: trades = [], isLoading, error, isFetching } = useQuery({
+    queryKey: ['trades', filters],
+    queryFn: () => tradesApi.getAll(filters),
+    retry: 1,
+    staleTime: 30000, // Data stays fresh for 30 seconds
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    placeholderData: (previousData) => previousData, // Keep previous data visible while fetching
   });
 
-  // Calculate quick stats
-  const stats = {
-    totalTrades: filteredTrades.length,
-    openTrades: filteredTrades.filter(t => t.status === 'OPEN').length,
-    winningTrades: filteredTrades.filter(t => t.netPnL && t.netPnL > 0).length,
-    totalPnL: filteredTrades.reduce((sum, t) => sum + (t.netPnL || 0), 0),
-  };
+  // Fetch statistics
+  const { data: statistics } = useQuery({
+    queryKey: ['trades-statistics'],
+    queryFn: () => tradesApi.getStatistics(),
+    retry: 1,
+  });
 
-  const winRate = stats.totalTrades > 0 
-    ? ((stats.winningTrades / filteredTrades.filter(t => t.status === 'CLOSED').length) * 100) 
-    : 0;
+  // Create trade mutation
+  const createTradeMutation = useMutation({
+    mutationFn: tradesApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trades'] });
+      queryClient.invalidateQueries({ queryKey: ['trades-statistics'] });
+      setIsFormModalOpen(false);
+    },
+    onError: (error: any) => {
+      alert(`Failed to create trade: ${error.response?.data?.message || error.message}`);
+    },
+  });
+
+  // Update trade mutation
+  const updateTradeMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string | number; data: Partial<TradeFormData> }) =>
+      tradesApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trades'] });
+      queryClient.invalidateQueries({ queryKey: ['trades-statistics'] });
+      setIsFormModalOpen(false);
+      setIsDetailModalOpen(false);
+    },
+    onError: (error: any) => {
+      alert(`Failed to update trade: ${error.response?.data?.message || error.message}`);
+    },
+  });
+
+  // Delete trade mutation
+  const deleteTradeMutation = useMutation({
+    mutationFn: tradesApi.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trades'] });
+      queryClient.invalidateQueries({ queryKey: ['trades-statistics'] });
+      setIsDetailModalOpen(false);
+    },
+    onError: (error: any) => {
+      alert(`Failed to delete trade: ${error.response?.data?.message || error.message}`);
+    },
+  });
+
+  // Bulk import mutation
+  const bulkImportMutation = useMutation({
+    mutationFn: tradesApi.bulkImport,
+    onSuccess: (importedTrades) => {
+      queryClient.invalidateQueries({ queryKey: ['trades'] });
+      queryClient.invalidateQueries({ queryKey: ['trades-statistics'] });
+      setIsImportModalOpen(false);
+      alert(`Successfully imported ${importedTrades.length} trade(s)!`);
+    },
+    onError: (error: any) => {
+      alert(`Failed to import trades: ${error.response?.data?.message || error.message}`);
+    },
+  });
+
+  // Calculate statistics
+  const totalTrades = statistics?.totalTrades ?? trades.length;
+  const openTrades = statistics?.openTrades ?? trades.filter((t: Trade) => t.status === 'OPEN').length;
+  const closedTrades = trades.filter((t: Trade) => t.status === 'CLOSED');
+  const winningTrades = closedTrades.filter((t: Trade) => (t.netPnL || 0) > 0).length;
+  const winRate = closedTrades.length > 0 ? (winningTrades / closedTrades.length) * 100 : 0;
+  const totalPnL = statistics?.totalPnL ?? trades.reduce((sum: number, t: Trade) => sum + (t.netPnL || 0), 0);
 
   // Handlers
   const handleViewTrade = (trade: Trade) => {
     setSelectedTrade(trade);
     setIsDetailModalOpen(true);
-  };
-
-  const handleEditTrade = (trade: Trade) => {
-    setEditingTrade(trade);
-    setFormMode('edit');
-    setIsFormModalOpen(true);
-  };
-
-  const handleDeleteTrade = (trade: Trade) => {
-    setTrades(trades.filter(t => t.id !== trade.id));
   };
 
   const handleAddTrade = () => {
@@ -233,53 +118,111 @@ export const TradesPage: React.FC = () => {
     setIsFormModalOpen(true);
   };
 
+  const handleEditTrade = (trade: Trade) => {
+    setEditingTrade(trade);
+    setFormMode('edit');
+    setIsFormModalOpen(true);
+    setIsDetailModalOpen(false);
+  };
+
+  const handleDeleteTrade = (trade: Trade) => {
+    if (window.confirm(`Are you sure you want to delete this ${trade.symbol} trade?`)) {
+      deleteTradeMutation.mutate(trade.id);
+    }
+  };
+
   const handleSubmitTrade = (formData: TradeFormData) => {
+    // Transform frontend field names to backend DTO format
+    const backendData: any = {
+      symbol: formData.symbol,
+      type: formData.direction, // Backend: 'type', Frontend: 'direction'
+      status: formData.status,
+      // Convert datetime-local to full ISO-8601 format
+      entryDate: formData.openDate ? new Date(formData.openDate).toISOString() : undefined,
+      entryPrice: formData.entryPrice,
+      quantity: formData.lots, // Backend: 'quantity', Frontend: 'lots'
+    };
+
+    // Add optional fields only if they have values
+    if (formData.closeDate) backendData.exitDate = new Date(formData.closeDate).toISOString();
+    if (formData.exitPrice !== undefined && formData.exitPrice !== null) backendData.exitPrice = formData.exitPrice;
+    if (formData.stopLoss !== undefined && formData.stopLoss !== null) backendData.stopLoss = formData.stopLoss;
+    if (formData.takeProfit !== undefined && formData.takeProfit !== null) backendData.takeProfit = formData.takeProfit;
+    if (formData.commission !== undefined && formData.commission !== null) backendData.commission = formData.commission;
+    if (formData.swap !== undefined && formData.swap !== null) backendData.swap = formData.swap;
+    if (formData.portfolioId) backendData.portfolioId = formData.portfolioId;
+    
+    // Include strategy and notes fields
+    if (formData.setup) backendData.strategy = formData.setup;
+    if (formData.entryReason) backendData.notes = formData.entryReason;
+    if (formData.exitReason) backendData.exitReason = formData.exitReason;
+    if (formData.mistakes) backendData.mistakes = formData.mistakes;
+    if (formData.lessonsLearned) backendData.lessonsLearned = formData.lessonsLearned;
+    
+    // For edit mode, preserve existing P&L to prevent recalculation
+    if (formMode === 'edit' && editingTrade) {
+      if (editingTrade.netPnL !== undefined) backendData.netProfitLoss = editingTrade.netPnL;
+      if (editingTrade.grossPnL !== undefined) backendData.profitLoss = editingTrade.grossPnL;
+    }
+
+    console.log('Sending to backend:', backendData);
+
     if (formMode === 'create') {
-      // Create new trade
-      const newTrade: Trade = {
-        id: Math.max(...trades.map(t => t.id), 0) + 1,
-        ...formData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setTrades([newTrade, ...trades]);
+      createTradeMutation.mutate(backendData);
     } else if (editingTrade) {
-      // Update existing trade
-      setTrades(trades.map(t => 
-        t.id === editingTrade.id 
-          ? { ...t, ...formData, updatedAt: new Date().toISOString() }
-          : t
-      ));
+      console.log('Updating trade ID:', editingTrade.id);
+      updateTradeMutation.mutate({ id: editingTrade.id, data: backendData });
     }
   };
 
   const handleImportTrades = (parsedTrades: ParsedTrade[]) => {
-    // Convert parsed trades to Trade objects
-    const newTrades: Trade[] = parsedTrades.map((parsed, index) => ({
-      id: Math.max(...trades.map(t => t.id), 0) + index + 1,
+    // Convert parsed trades to backend DTO format
+    const tradesToImport: Partial<TradeFormData>[] = parsedTrades.map((parsed) => ({
       symbol: parsed.symbol,
-      direction: parsed.direction,
+      type: parsed.direction, // Backend expects 'type' not 'direction'
       status: parsed.closeDate ? 'CLOSED' : 'OPEN',
-      openDate: parsed.openDate,
-      closeDate: parsed.closeDate,
+      entryDate: parsed.openDate, // Backend expects 'entryDate' not 'openDate'
+      exitDate: parsed.closeDate, // Backend expects 'exitDate' not 'closeDate'
       entryPrice: parsed.entryPrice,
       exitPrice: parsed.exitPrice,
       stopLoss: parsed.stopLoss,
       takeProfit: parsed.takeProfit,
-      lots: parsed.lots,
+      quantity: parsed.lots, // Backend expects 'quantity' not 'lots'
       commission: parsed.commission,
       swap: parsed.swap,
-      netPnL: parsed.netPnL,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      netProfitLoss: parsed.netPnL, // Backend expects 'netProfitLoss' not 'netPnL'
     }));
 
-    setTrades([...newTrades, ...trades]);
-    setIsImportModalOpen(false);
-    
-    // Show success message (in real app, use toast notification)
-    alert(`Successfully imported ${newTrades.length} trade(s)!`);
+    bulkImportMutation.mutate(tradesToImport);
   };
+
+  const handleFilterChange = (newFilters: TradeFiltersType) => {
+    setFilters(newFilters);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-[var(--color-text-muted)]">Loading trades...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full space-y-4">
+        <div className="text-[var(--color-error)] text-lg">Failed to load trades</div>
+        <div className="text-[var(--color-text-muted)] text-sm">
+          {(error as any)?.response?.status === 401 
+            ? 'Please log in to view your trades'
+            : (error as any)?.message || 'An error occurred'}
+        </div>
+        <Button variant="primary" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -306,47 +249,53 @@ export const TradesPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Trades"
-          value={stats.totalTrades}
-          icon={<Activity size={20} className="text-[var(--color-primary)]" />}
+          value={totalTrades.toString()}
+          icon={<Activity className="text-[var(--color-primary)]" size={24} />}
+          trend={totalTrades > 0 ? 'up' : undefined}
         />
-        
         <StatCard
           title="Open Trades"
-          value={stats.openTrades}
-          icon={<TrendingUp size={20} className="text-[var(--color-primary)]" />}
+          value={openTrades.toString()}
+          icon={<Target className="text-[var(--color-warning)]" size={24} />}
         />
-        
         <StatCard
           title="Win Rate"
           value={`${winRate.toFixed(1)}%`}
-          trend={winRate >= 50 ? 'up' : 'down'}
-          change={winRate >= 50 ? `+${(winRate - 50).toFixed(1)}%` : `${(winRate - 50).toFixed(1)}%`}
-          icon={<Target size={20} className={winRate >= 50 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'} />}
+          icon={<TrendingUp className="text-[var(--color-success)]" size={24} />}
+          trend={winRate >= 50 ? 'up' : winRate > 0 ? 'down' : undefined}
         />
-        
         <StatCard
           title="Total P&L"
-          value={`$${stats.totalPnL.toFixed(2)}`}
-          trend={stats.totalPnL >= 0 ? 'up' : 'down'}
-          change={stats.totalPnL >= 0 ? `+${stats.totalPnL.toFixed(2)}` : `${stats.totalPnL.toFixed(2)}`}
-          icon={<DollarSign size={20} className={stats.totalPnL >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'} />}
+          value={`$${totalPnL.toFixed(2)}`}
+          icon={<DollarSign className="text-[var(--color-accent)]" size={24} />}
+          trend={totalPnL > 0 ? 'up' : totalPnL < 0 ? 'down' : undefined}
         />
       </div>
 
       {/* Filters */}
       <TradeFilters
         filters={filters}
-        onFiltersChange={setFilters}
-        availableTags={['Scalp', 'Swing', 'Trend', 'Reversal', 'Breakout', 'Channel']}
+        onFiltersChange={handleFilterChange}
+        availableTags={[]}
       />
 
-      {/* Trades Table */}
-      <TradesTable
-        trades={filteredTrades}
-        onViewTrade={handleViewTrade}
-        onEditTrade={handleEditTrade}
-        onDeleteTrade={handleDeleteTrade}
-      />
+      {/* Trades Table with Loading Overlay */}
+      <div className="relative">
+        {isFetching && !isLoading && (
+          <div className="absolute inset-0 bg-[var(--color-surface)] bg-opacity-50 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+            <div className="flex items-center gap-2 px-4 py-2 bg-[var(--color-surface-light)] rounded-lg border border-[var(--color-border)]">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-[var(--color-primary)] border-t-transparent"></div>
+              <span className="text-[var(--color-text-muted)] text-sm">Updating...</span>
+            </div>
+          </div>
+        )}
+        <TradesTable
+          trades={trades}
+          onViewTrade={handleViewTrade}
+          onEditTrade={handleEditTrade}
+          onDeleteTrade={handleDeleteTrade}
+        />
+      </div>
 
       {/* Trade Detail Modal */}
       <TradeDetailModal

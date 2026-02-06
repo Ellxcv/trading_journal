@@ -63,32 +63,42 @@ model Trade {
 
   // Trade details
   symbol      String
-  type        TradeType
+  type        TradeType      // LONG or SHORT (direction in frontend)
   status      TradeStatus @default(CLOSED)
   
   // Entry details
   entryPrice  Decimal     @db.Decimal(18, 8)
-  entryDate   DateTime
-  quantity    Decimal     @db.Decimal(18, 8)
+  entryDate   DateTime    // openDate in frontend
+  quantity    Decimal     @db.Decimal(18, 8)  // lots in frontend
   
   // Exit details
   exitPrice   Decimal?    @db.Decimal(18, 8)
-  exitDate    DateTime?
+  exitDate    DateTime?   // closeDate in frontend
   
   // Risk management
   stopLoss    Decimal?    @db.Decimal(18, 8)
   takeProfit  Decimal?    @db.Decimal(18, 8)
   
   // Financial calculations
-  profitLoss  Decimal?    @db.Decimal(18, 8)
+  profitLoss  Decimal?    @db.Decimal(18, 8)  // grossPnL in frontend
   commission  Decimal?    @db.Decimal(18, 8)
-  netProfitLoss Decimal?  @db.Decimal(18, 8)
+  swap        Decimal?    @db.Decimal(18, 8)  // NEW: Swap/Overnight fees
+  netProfitLoss Decimal?  @db.Decimal(18, 8)  // netPnL in frontend
+  pips        Decimal?    @db.Decimal(10, 2)  // NEW: Pips gained/lost
+  pnlPercentage Decimal?  @db.Decimal(10, 2)  // NEW: P&L percentage
+  riskRewardRatio Decimal? @db.Decimal(10, 2) // NEW: R:R ratio
   
-  // Trade metadata
-  notes       String?     @db.Text
+  // Trade analysis & notes
+  setup       String?     // Trading setup (Breakout, Pullback, etc.)
+  entryReason String?     @db.Text  // NEW: Why entered the trade
+  exitReason  String?     @db.Text  // NEW: Why exited the trade
+  mistakes    String?     @db.Text  // NEW: What went wrong
+  lessonsLearned String?  @db.Text  // NEW: What was learned
+  notes       String?     @db.Text  // General notes
   screenshots String[]    // Array of image URLs
-  strategy    String?
-  timeframe   String?
+  attachments Json?       // NEW: JSON array of file attachments {id, name, type, size, url, uploadedAt}
+  strategy    String?     // Strategy name
+  timeframe   String?     // Trading timeframe
   
   // Timestamps
   createdAt   DateTime    @default(now())

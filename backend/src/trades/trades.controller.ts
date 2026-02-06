@@ -26,6 +26,11 @@ export class TradesController {
     return this.tradesService.create(user.id, createTradeDto);
   }
 
+  @Post('bulk')
+  bulkCreate(@CurrentUser() user: any, @Body() body: { trades: CreateTradeDto[] }) {
+    return this.tradesService.bulkCreate(user.id, body.trades);
+  }
+
   @Get()
   findAll(@CurrentUser() user: any, @Query() filterDto: FilterTradesDto) {
     return this.tradesService.findAll(user.id, filterDto);

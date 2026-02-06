@@ -91,6 +91,7 @@ export const tradesApi = {
     openTrades: number;
     winRate: number;
     totalPnL: number;
+    profitFactor: number;
   }> {
     const { data } = await api.get('/trades/statistics');
     return {
@@ -98,12 +99,24 @@ export const tradesApi = {
       openTrades: 0, // Will be calculated from data
       winRate: data.winRate || 0,
       totalPnL: data.totalProfitLoss ? Number(data.totalProfitLoss) : 0,
+      profitFactor: data.profitFactor || 0,
     };
   },
 
   // Bulk import trades
-  async bulkImport(trades: Partial<TradeFormData>[]): Promise<Trade[]> {
-    const { data } = await api.post<any[]>('/trades/bulk', { trades });
-    return data.map(transformBackendTrade);
+  async bulkImport(trades: Partial<TradeFormData>[]): Promise<{
+    created: Trade[];
+    summary: {
+      total: number;
+      created: number;
+      skipped: number;
+      failed: number;
+    };
+  }> {
+    const { data } = await api.post<any>('/trades/bulk', { trades });
+    return {
+      created: data.created.map(transformBackendTrade),
+      summary: data.summary,
+    };
   },
 };

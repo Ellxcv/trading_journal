@@ -306,17 +306,58 @@ export class TradesService {
   // Bulk create trades (for importing from broker)
   async bulkCreate(userId: string, createTradeDtos: CreateTradeDto[]) {
     const createdTrades: any[] = [];
+    const skippedTrades: any[] = [];
+    const failedTrades: any[] = [];
     
     for (const createTradeDto of createTradeDtos) {
       try {
+        // Check for duplicate trade
+        // A trade is considered duplicate if it has the same:
+        // - userId, symbol, entryDate, entryPrice, and quantity
+        const existingTrade = await this.prisma.trade.findFirst({
+          where: {
+            userId,
+            symbol: createTradeDto.symbol,
+            entryDate: createTradeDto.entryDate,
+            entryPrice: createTradeDto.entryPrice,
+            quantity: createTradeDto.quantity,
+          },
+        });
+
+        if (existingTrade) {
+          // Skip duplicate
+          skippedTrades.push({
+            symbol: createTradeDto.symbol,
+            entryDate: createTradeDto.entryDate,
+            reason: 'Duplicate trade already exists',
+          });
+          continue;
+        }
+
+        // Create the trade if not duplicate
         const trade = await this.create(userId, createTradeDto);
         createdTrades.push(trade);
       } catch (error) {
         console.error('Failed to create trade:', error);
+        failedTrades.push({
+          symbol: createTradeDto.symbol,
+          entryDate: createTradeDto.entryDate,
+          error: error.message,
+        });
         // Continue with other trades even if one fails
       }
     }
     
-    return createdTrades;
+    return {
+      created: createdTrades,
+      skipped: skippedTrades,
+      failed: failedTrades,
+      summary: {
+        total: createTradeDtos.length,
+        created: createdTrades.length,
+        skipped: skippedTrades.length,
+        failed: failedTrades.length,
+      },
+    };
   }
 }

@@ -1,48 +1,98 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DollarSign, Target, TrendingUp, BarChart3 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { 
   StatCard, 
   CumulativePnLChart, 
   RecentTradesTable, 
-  TradingCalendar 
+  TradingCalendar,
+  DailyPnLHistogram
 } from '../components/dashboard';
-
-// Mock data - will be replaced with real API calls
-const mockStats = {
-  netPnL: 5420.50,
-  netPnLChange: '+12.5%',
-  profitFactor: 2.35,
-  winRate: 68.4,
-  winRateChange: '+5.2%',
-  avgWinLoss: 2.8,
-};
-
-const mockChartData = [
-  { date: '01/01', pnl: 0 },
-  { date: '01/05', pnl: 245.50 },
-  { date: '01/10', pnl: 380.20 },
-  { date: '01/15', pnl: 520.80 },
-  { date: '01/20', pnl: 1240.30 },
-  { date: '01/25', pnl: 2150.60 },
-  { date: '01/30', pnl: 3420.90 },
-  { date: '02/01', pnl: 5420.50 },
-];
-
-const mockRecentTrades = [
-  { id: 1, closeDate: '2026-01-28', symbol: 'EURUSD', netPnL: 245.50 },
-  { id: 2, closeDate: '2026-01-27', symbol: 'GBPUSD', netPnL: -120.30 },
-  { id: 3, closeDate: '2026-01-26', symbol: 'USDJPY', netPnL: 380.75 },
-  { id: 4, closeDate: '2026-01-25', symbol: 'AUDUSD', netPnL: 156.20 },
-  { id: 5, closeDate: '2026-01-24', symbol: 'NZDUSD', netPnL: -89.50 },
-  { id: 6, closeDate: '2026-01-23', symbol: 'EURUSD', netPnL: 420.80 },
-  { id: 7, closeDate: '2026-01-22', symbol: 'GBPJPY', netPnL: 198.40 },
-];
+import { tradesApi } from '../services/tradesApi';
+import { Trade } from '../types/trade';
 
 export const DashboardPage: React.FC = () => {
+  // Fetch all trades
+  const { data: trades = [], isLoading: tradesLoading } = useQuery({
+    queryKey: ['trades'],
+    queryFn: () => tradesApi.getAll(),
+    retry: 1,
+  });
+
+  // Fetch statistics
+  const { data: statistics, isLoading: statsLoading } = useQuery({
+    queryKey: ['trades-statistics'],
+    queryFn: () => tradesApi.getStatistics(),
+    retry: 1,
+  });
+
+  // Calculate cumulative P&L chart data
+  const chartData = useMemo(() => {
+    const closedTrades = trades
+      .filter((t: Trade) => t.status === 'CLOSED' && t.closeDate && t.netPnL !== undefined)
+      .sort((a: Trade, b: Trade) => new Date(a.closeDate!).getTime() - new Date(b.closeDate!).getTime());
+
+    if (closedTrades.length === 0) {
+      return [{ date: 'No data', pnl: 0 }];
+    }
+
+    let cumulativePnL = 0;
+    return closedTrades.map((trade: Trade) => {
+      cumulativePnL += trade.netPnL || 0;
+      const date = new Date(trade.closeDate!);
+      return {
+        date: `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`,
+        pnl: Number(cumulativePnL.toFixed(2)),
+      };
+    });
+  }, [trades]);
+
+  // Get recent trades (last 7 closed trades)
+  const recentTrades = useMemo(() => {
+    return trades
+      .filter((t: Trade) => t.status === 'CLOSED' && t.closeDate)
+      .sort((a: Trade, b: Trade) => new Date(b.closeDate!).getTime() - new Date(a.closeDate!).getTime())
+      .slice(0, 7)
+      .map((t: Trade) => ({
+        id: t.id,
+        closeDate: t.closeDate!,
+        symbol: t.symbol,
+        netPnL: t.netPnL || 0,
+      }));
+  }, [trades]);
+
+
+  // Calculate additional statistics
+  const stats = useMemo(() => {
+    const closedTrades = trades.filter((t: Trade) => t.status === 'CLOSED' && t.netPnL !== undefined);
+    const winningTrades = closedTrades.filter((t: Trade) => (t.netPnL || 0) > 0);
+    const losingTrades = closedTrades.filter((t: Trade) => (t.netPnL || 0) < 0);
+
+    const totalWins = winningTrades.reduce((sum, t: Trade) => sum + (t.netPnL || 0), 0);
+    const totalLosses = Math.abs(losingTrades.reduce((sum, t: Trade) => sum + (t.netPnL || 0), 0));
+    const avgWin = winningTrades.length > 0 ? totalWins / winningTrades.length : 0;
+    const avgLoss = losingTrades.length > 0 ? totalLosses / losingTrades.length : 0;
+
+    return {
+      netPnL: statistics?.totalPnL || 0,
+      profitFactor: statistics?.profitFactor || 0,
+      winRate: statistics?.winRate || 0,
+      avgWinLoss: avgLoss > 0 ? avgWin / avgLoss : 0,
+    };
+  }, [trades, statistics]);
+
   const handleMonthChange = (month: number, year: number) => {
     console.log(`Calendar navigated to: ${month + 1}/${year}`);
     // In real app, fetch data for this month/year from API
   };
+
+  if (tradesLoading || statsLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-[var(--color-text-muted)]">Loading dashboard...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -54,31 +104,29 @@ export const DashboardPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Net P&L"
-            value={`$${mockStats.netPnL.toLocaleString()}`}
-            change={mockStats.netPnLChange}
-            trend="up"
+            value={`$${stats.netPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            trend={stats.netPnL > 0 ? 'up' : stats.netPnL < 0 ? 'down' : 'neutral'}
             icon={<DollarSign size={24} className="text-[var(--color-success)]" />}
           />
           
           <StatCard
             title="Profit Factor"
-            value={mockStats.profitFactor.toFixed(2)}
-            trend="neutral"
+            value={stats.profitFactor.toFixed(2)}
+            trend={stats.profitFactor > 1.5 ? 'up' : stats.profitFactor > 0 ? 'neutral' : 'down'}
             icon={<Target size={24} className="text-[var(--color-primary)]" />}
           />
           
           <StatCard
             title="Trade Win %"
-            value={`${mockStats.winRate}%`}
-            change={mockStats.winRateChange}
-            trend="up"
+            value={`${stats.winRate.toFixed(1)}%`}
+            trend={stats.winRate >= 50 ? 'up' : stats.winRate > 0 ? 'neutral' : 'down'}
             icon={<TrendingUp size={24} className="text-[var(--color-success)]" />}
           />
           
           <StatCard
             title="Avg. Win/Loss"
-            value={`${mockStats.avgWinLoss.toFixed(2)}x`}
-            trend="neutral"
+            value={`${stats.avgWinLoss.toFixed(2)}x`}
+            trend={stats.avgWinLoss > 2 ? 'up' : stats.avgWinLoss > 0 ? 'neutral' : 'down'}
             icon={<BarChart3 size={24} className="text-[var(--color-primary)]" />}
           />
         </div>
@@ -87,9 +135,10 @@ export const DashboardPage: React.FC = () => {
       {/* Divider */}
       <div className="border-t border-[var(--color-border)]" />
 
-      {/* Section: Performance Chart */}
-      <section>
-        <CumulativePnLChart data={mockChartData} />
+      {/* Section: Performance Charts */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <CumulativePnLChart data={chartData} />
+        <DailyPnLHistogram trades={trades} daysToShow={14} />
       </section>
 
       {/* Divider */}
@@ -101,10 +150,11 @@ export const DashboardPage: React.FC = () => {
           Recent Activity
         </h2>
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <RecentTradesTable trades={mockRecentTrades} />
+          <RecentTradesTable trades={recentTrades} />
           <TradingCalendar 
-            initialMonth={1} 
-            initialYear={2026}
+            initialMonth={new Date().getMonth()} 
+            initialYear={new Date().getFullYear()}
+            trades={trades}
             onMonthChange={handleMonthChange}
           />
         </div>

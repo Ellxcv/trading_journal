@@ -12,6 +12,17 @@ interface RecentTradesTableProps {
   trades: Trade[];
 }
 
+// Format date to readable format
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  const options: Intl.DateTimeFormatOptions = { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  };
+  return date.toLocaleDateString('en-US', options);
+};
+
 export const RecentTradesTable: React.FC<RecentTradesTableProps> = ({ trades }) => {
   return (
     <div className="glass-card p-6">
@@ -41,7 +52,7 @@ export const RecentTradesTable: React.FC<RecentTradesTableProps> = ({ trades }) 
                 className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-light)] transition-colors"
               >
                 <td className="py-3 px-4 text-sm text-[var(--color-text-secondary)]">
-                  {trade.closeDate}
+                  {formatDate(trade.closeDate)}
                 </td>
                 <td className="py-3 px-4">
                   <span className="text-sm font-medium text-[var(--color-text-primary)]">

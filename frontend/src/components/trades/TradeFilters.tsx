@@ -8,6 +8,8 @@ interface TradeFiltersProps {
   availableTags: string[];
 }
 
+type DateRangePreset = 'ALL' | 'TODAY' | 'LAST_WEEK' | 'LAST_MONTH' | 'LAST_3_MONTHS' | 'CUSTOM';
+
 export const TradeFilters: React.FC<TradeFiltersProps> = ({ 
   filters, 
   onFiltersChange,
@@ -15,6 +17,60 @@ export const TradeFilters: React.FC<TradeFiltersProps> = ({
 }) => {
   // Local state for search input (not yet applied)
   const [searchInput, setSearchInput] = useState(filters.search || '');
+  const [datePreset, setDatePreset] = useState<DateRangePreset>('ALL');
+
+  // Calculate date ranges based on preset
+  const calculateDateRange = (preset: DateRangePreset): { dateFrom?: string; dateTo?: string } => {
+    const today = new Date();
+    const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+    switch (preset) {
+      case 'TODAY':
+        return { dateFrom: formatDate(today), dateTo: formatDate(today) };
+      
+      case 'LAST_WEEK': {
+        const lastWeek = new Date(today);
+        lastWeek.setDate(today.getDate() - 7);
+        return { dateFrom: formatDate(lastWeek), dateTo: formatDate(today) };
+      }
+      
+      case 'LAST_MONTH': {
+        const lastMonth = new Date(today);
+        lastMonth.setMonth(today.getMonth() - 1);
+        return { dateFrom: formatDate(lastMonth), dateTo: formatDate(today) };
+      }
+      
+      case 'LAST_3_MONTHS': {
+        const last3Months = new Date(today);
+        last3Months.setMonth(today.getMonth() - 3);
+        return { dateFrom: formatDate(last3Months), dateTo: formatDate(today) };
+      }
+      
+      case 'CUSTOM':
+      case 'ALL':
+      default:
+        return { dateFrom: undefined, dateTo: undefined };
+    }
+  };
+
+  // Handle date preset change
+  const handleDatePresetChange = (preset: DateRangePreset) => {
+    setDatePreset(preset);
+    
+    if (preset === 'CUSTOM') {
+      // Keep existing custom dates or clear them
+      // Don't auto-apply until user sets dates
+      return;
+    }
+    
+    // Apply preset dates immediately
+    const range = calculateDateRange(preset);
+    onFiltersChange({ 
+      ...filters, 
+      dateFrom: range.dateFrom,
+      dateTo: range.dateTo 
+    });
+  };
 
   const handleSearchSubmit = () => {
     onFiltersChange({ ...filters, search: searchInput });
@@ -40,12 +96,15 @@ export const TradeFilters: React.FC<TradeFiltersProps> = ({
 
   const handleClearFilters = () => {
     setSearchInput('');
+    setDatePreset('ALL');
     onFiltersChange({
       search: '',
       status: 'ALL',
       direction: 'ALL',
       profitLoss: 'ALL',
       tags: [],
+      dateFrom: undefined,
+      dateTo: undefined,
     });
   };
 
@@ -54,6 +113,8 @@ export const TradeFilters: React.FC<TradeFiltersProps> = ({
     filters.status !== 'ALL' || 
     filters.direction !== 'ALL' || 
     filters.profitLoss !== 'ALL' ||
+    filters.dateFrom ||
+    filters.dateTo ||
     (filters.tags && filters.tags.length > 0);
 
   return (
@@ -84,7 +145,7 @@ export const TradeFilters: React.FC<TradeFiltersProps> = ({
       </div>
 
       {/* Filter Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Status Filter */}
         <select
           value={filters.status}
@@ -124,28 +185,50 @@ export const TradeFilters: React.FC<TradeFiltersProps> = ({
           <option value="LOSS">Loss Only</option>
         </select>
 
-        {/* Date From */}
-        <input
-          type="date"
-          value={filters.dateFrom || ''}
-          onChange={(e) => onFiltersChange({ ...filters, dateFrom: e.target.value })}
-          placeholder="Start Date"
+        {/* Date Range Preset Dropdown */}
+        <select
+          value={datePreset}
+          onChange={(e) => handleDatePresetChange(e.target.value as DateRangePreset)}
           className="px-3 py-2 bg-[var(--color-surface-light)] border border-[var(--color-border)] rounded-lg
-            text-[var(--color-text-primary)] text-sm
-            focus:outline-none focus:border-[var(--color-primary)] transition-colors"
-        />
-
-        {/* Date To */}
-        <input
-          type="date"
-          value={filters.dateTo || ''}
-          onChange={(e) => onFiltersChange({ ...filters, dateTo: e.target.value })}
-          placeholder="End Date"
-          className="px-3 py-2 bg-[var(--color-surface-light)] border border-[var(--color-border)] rounded-lg
-            text-[var(--color-text-primary)] text-sm
-            focus:outline-none focus:border-[var(--color-primary)] transition-colors"
-        />
+            text-[var(--color-text-primary)] text-sm col-span-2 md:col-span-1
+            focus:outline-none focus:border-[var(--color-primary)] transition-colors cursor-pointer"
+        >
+          <option value="ALL">All Time</option>
+          <option value="TODAY">Today</option>
+          <option value="LAST_WEEK">Last Week</option>
+          <option value="LAST_MONTH">Last Month</option>
+          <option value="LAST_3_MONTHS">Last 3 Months</option>
+          <option value="CUSTOM">Custom Range</option>
+        </select>
       </div>
+
+      {/* Custom Date Range Inputs - Only show when CUSTOM is selected */}
+      {datePreset === 'CUSTOM' && (
+        <div className="grid grid-cols-2 gap-3 pl-4 border-l-2 border-[var(--color-primary)]">
+          <div>
+            <label className="block text-xs text-[var(--color-text-muted)] mb-1">Start Date</label>
+            <input
+              type="date"
+              value={filters.dateFrom || ''}
+              onChange={(e) => onFiltersChange({ ...filters, dateFrom: e.target.value })}
+              className="w-full px-3 py-2 bg-[var(--color-surface-light)] border border-[var(--color-border)] rounded-lg
+                text-[var(--color-text-primary)] text-sm
+                focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--color-text-muted)] mb-1">End Date</label>
+            <input
+              type="date"
+              value={filters.dateTo || ''}
+              onChange={(e) => onFiltersChange({ ...filters, dateTo: e.target.value })}
+              className="w-full px-3 py-2 bg-[var(--color-surface-light)] border border-[var(--color-border)] rounded-lg
+                text-[var(--color-text-primary)] text-sm
+                focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Clear Filters Button */}
       {hasActiveFilters && (

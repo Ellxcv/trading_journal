@@ -25,6 +25,10 @@ export const TradesPage: React.FC = () => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Fetch trades with filters
   const { data: trades = [], isLoading, error, isFetching } = useQuery({
@@ -34,13 +38,6 @@ export const TradesPage: React.FC = () => {
     staleTime: 30000, // Data stays fresh for 30 seconds
     refetchOnWindowFocus: false, // Don't refetch when window regains focus
     placeholderData: (previousData) => previousData, // Keep previous data visible while fetching
-  });
-
-  // Fetch statistics
-  const { data: statistics } = useQuery({
-    queryKey: ['trades-statistics'],
-    queryFn: () => tradesApi.getStatistics(),
-    retry: 1,
   });
 
   // Create trade mutation
@@ -87,24 +84,48 @@ export const TradesPage: React.FC = () => {
   // Bulk import mutation
   const bulkImportMutation = useMutation({
     mutationFn: tradesApi.bulkImport,
-    onSuccess: (importedTrades) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['trades'] });
       queryClient.invalidateQueries({ queryKey: ['trades-statistics'] });
       setIsImportModalOpen(false);
-      alert(`Successfully imported ${importedTrades.length} trade(s)!`);
+      
+      const { summary } = result;
+      let message = `Import Summary:\n`;
+      message += `✅ Created: ${summary.created} trade(s)\n`;
+      if (summary.skipped > 0) {
+        message += `⏭️ Skipped: ${summary.skipped} duplicate(s)\n`;
+      }
+      if (summary.failed > 0) {
+        message += `❌ Failed: ${summary.failed} trade(s)\n`;
+      }
+      message += `\nTotal processed: ${summary.total} trade(s)`;
+      
+      alert(message);
     },
     onError: (error: any) => {
       alert(`Failed to import trades: ${error.response?.data?.message || error.message}`);
     },
   });
 
-  // Calculate statistics
-  const totalTrades = statistics?.totalTrades ?? trades.length;
-  const openTrades = statistics?.openTrades ?? trades.filter((t: Trade) => t.status === 'OPEN').length;
+
+  // Calculate statistics based on filtered trades
+  const totalTrades = trades.length;
+  const openTrades = trades.filter((t: Trade) => t.status === 'OPEN').length;
   const closedTrades = trades.filter((t: Trade) => t.status === 'CLOSED');
   const winningTrades = closedTrades.filter((t: Trade) => (t.netPnL || 0) > 0).length;
   const winRate = closedTrades.length > 0 ? (winningTrades / closedTrades.length) * 100 : 0;
-  const totalPnL = statistics?.totalPnL ?? trades.reduce((sum: number, t: Trade) => sum + (t.netPnL || 0), 0);
+  const totalPnL = trades.reduce((sum: number, t: Trade) => sum + (t.netPnL || 0), 0);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(trades.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedTrades = trades.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   // Handlers
   const handleViewTrade = (trade: Trade) => {
@@ -290,12 +311,74 @@ export const TradesPage: React.FC = () => {
           </div>
         )}
         <TradesTable
-          trades={trades}
+          trades={paginatedTrades}
           onViewTrade={handleViewTrade}
           onEditTrade={handleEditTrade}
           onDeleteTrade={handleDeleteTrade}
         />
       </div>
+
+      {/* Pagination Controls */}
+      {trades.length > itemsPerPage &&(
+        <div className="glass-card p-4 flex items-center justify-between">
+          <div className="text-sm text-[var(--color-text-muted)]">
+            Showing {startIndex + 1} to {Math.min(endIndex, trades.length)} of {trades.length} trades
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 bg-[var(--color-surface-light)] hover:bg-[var(--color-surface)] 
+                text-[var(--color-text-primary)] rounded-lg transition-colors
+                disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[var(--color-surface-light)]"
+            >
+              Previous
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                // Show first page, last page, current page, and pages around current
+                if (
+                  page === 1 ||
+                  page === totalPages ||
+                  (page >= currentPage - 1 && page <= currentPage + 1)
+                ) {
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-10 h-10 rounded-lg transition-colors ${
+                        currentPage === page
+                          ? 'bg-[var(--color-primary)] text-white'
+                          : 'bg-[var(--color-surface-light)] hover:bg-[var(--color-surface)] text-[var(--color-text-primary)]'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                } else if (
+                  page === currentPage - 2 ||
+                  page === currentPage + 2
+                ) {
+                  return <span key={page} className="text-[var(--color-text-muted)]">...</span>;
+                }
+                return null;
+              })}
+            </div>
+            
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 bg-[var(--color-surface-light)] hover:bg-[var(--color-surface)] 
+                text-[var(--color-text-primary)] rounded-lg transition-colors
+                disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[var(--color-surface-light)]"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Trade Detail Modal */}
       <TradeDetailModal

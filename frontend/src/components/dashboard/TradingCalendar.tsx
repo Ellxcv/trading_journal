@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface CalendarDay {
@@ -8,15 +8,24 @@ interface CalendarDay {
   isCurrentMonth: boolean;
 }
 
+interface Trade {
+  id: string | number;
+  closeDate?: string;
+  netPnL?: number;
+  status: string;
+}
+
 interface TradingCalendarProps {
   initialMonth?: number; // 0-11
   initialYear?: number;
+  trades?: Trade[]; // Real trade data
   onMonthChange?: (month: number, year: number) => void;
 }
 
 export const TradingCalendar: React.FC<TradingCalendarProps> = ({ 
   initialMonth = new Date().getMonth(), 
   initialYear = new Date().getFullYear(),
+  trades = [],
   onMonthChange 
 }) => {
   const [currentMonth, setCurrentMonth] = useState(initialMonth);
@@ -53,6 +62,29 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
     }
   };
 
+  // Calculate daily P&L from trades
+  const dailyPnL = useMemo(() => {
+    const pnlMap: Record<string, number> = {};
+    
+    trades
+      .filter(t => t.status === 'CLOSED' && t.closeDate && t.netPnL !== undefined)
+      .forEach(trade => {
+        // Use local date instead of UTC to match user's timezone
+        const date = new Date(trade.closeDate!);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const closeDate = `${year}-${month}-${day}`;
+        
+        if (!pnlMap[closeDate]) {
+          pnlMap[closeDate] = 0;
+        }
+        pnlMap[closeDate] += trade.netPnL || 0;
+      });
+    
+    return pnlMap;
+  }, [trades]);
+
   // Generate calendar data for current month
   const generateCalendarData = (): CalendarDay[] => {
     const data: CalendarDay[] = [];
@@ -66,30 +98,24 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
     for (let i = firstDay - 1; i >= 0; i--) {
       const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
       const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const dateStr = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(daysInPrevMonth - i).padStart(2, '0')}`;
+      
       data.push({
-        date: `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(daysInPrevMonth - i).padStart(2, '0')}`,
+        date: dateStr,
         dayOfMonth: daysInPrevMonth - i,
-        pnl: null,
+        pnl: dailyPnL[dateStr] || null,
         isCurrentMonth: false,
       });
     }
     
-    // Mock trade data (in real app, this would come from API based on month/year)
-    const getMockPnL = (day: number): number | null => {
-      // Generate some random-ish data for demo
-      const seed = (currentYear * 12 + currentMonth) * 31 + day;
-      const random = Math.sin(seed) * 10000;
-      
-      if (Math.abs(random) % 3 < 1) return null; // No trade ~33% of days
-      return Math.floor((random % 1000) - 300); // Random P&L between -300 and 700
-    };
-    
     // Fill current month days
     for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
       data.push({
-        date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+        date: dateStr,
         dayOfMonth: day,
-        pnl: getMockPnL(day),
+        pnl: dailyPnL[dateStr] || null,
         isCurrentMonth: true,
       });
     }
@@ -100,10 +126,12 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
     const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
     
     for (let day = 1; data.length < totalCells; day++) {
+      const dateStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
       data.push({
-        date: `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+        date: dateStr,
         dayOfMonth: day,
-        pnl: null,
+        pnl: dailyPnL[dateStr] || null,
         isCurrentMonth: false,
       });
     }

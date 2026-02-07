@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { DayTradesModal } from './DayTradesModal';
+import { Trade as TradeType } from '../../types/trade';
 
 interface CalendarDay {
   date: string;
@@ -30,6 +32,7 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
 }) => {
   const [currentMonth, setCurrentMonth] = useState(initialMonth);
   const [currentYear, setCurrentYear] = useState(initialYear);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -211,6 +214,7 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
               ${day.isCurrentMonth ? 'opacity-100' : 'opacity-30'}
               group cursor-pointer relative
             `}
+            onClick={() => day.pnl !== null && setSelectedDate(day.date)}
           >
             <span className={`text-sm font-semibold ${getCellTextColor(day.pnl)}`}>
               {day.dayOfMonth}
@@ -241,6 +245,19 @@ export const TradingCalendar: React.FC<TradingCalendarProps> = ({
           </div>
         ))}
       </div>
+
+      {/* Day Trades Modal */}
+      <DayTradesModal
+        isOpen={selectedDate !== null}
+        onClose={() => setSelectedDate(null)}
+        date={selectedDate || ''}
+        trades={(trades as TradeType[]).filter(t => {
+          if (!selectedDate || t.status !== 'CLOSED' || !t.closeDate) return false;
+          const tradeDate = new Date(t.closeDate);
+          const tradeDateStr = `${tradeDate.getFullYear()}-${String(tradeDate.getMonth() + 1).padStart(2, '0')}-${String(tradeDate.getDate()).padStart(2, '0')}`;
+          return tradeDateStr === selectedDate;
+        })}
+      />
 
       {/* Legend */}
       <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t border-[var(--color-border)]">

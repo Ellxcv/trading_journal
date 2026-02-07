@@ -45,6 +45,37 @@ export const TradesTable: React.FC<TradesTableProps> = ({
     return num.toFixed(2);
   };
 
+  const formatRiskReward = (trade: Trade) => {
+    const hasTP = trade.takeProfit !== undefined && trade.takeProfit !== null;
+    const hasSL = trade.stopLoss !== undefined && trade.stopLoss !== null;
+    
+    // If both missing, return N:N
+    if (!hasTP && !hasSL) {
+      return 'R:R';
+    }
+    
+    // If only one is missing, return N for the missing one
+    if (!hasTP) {
+      return 'R:1';
+    }
+    if (!hasSL) {
+      return '1:R';
+    }
+    
+    // Both exist, calculate ratio
+    const entry = typeof trade.entryPrice === 'number' ? trade.entryPrice : Number(trade.entryPrice);
+    const tp = typeof trade.takeProfit === 'number' ? trade.takeProfit : Number(trade.takeProfit);
+    const sl = typeof trade.stopLoss === 'number' ? trade.stopLoss : Number(trade.stopLoss);
+    
+    const reward = Math.abs(tp - entry);
+    const risk = Math.abs(entry - sl);
+    
+    if (risk === 0) return 'R:R';
+    
+    const ratio = reward / risk;
+    return `1:${ratio.toFixed(2)}`;
+  };
+
   return (
     <div className="glass-card overflow-hidden">
       <div className="overflow-x-auto">
@@ -135,7 +166,7 @@ export const TradesTable: React.FC<TradesTableProps> = ({
                     {formatPnL(trade.netPnL)}
                   </td>
                   <td className="py-3 px-4 text-right text-sm text-[var(--color-text-secondary)]">
-                    {formatNumber(trade.riskRewardRatio)}
+                    {formatRiskReward(trade)}
                   </td>
                   <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-2">

@@ -253,13 +253,20 @@ export class TradesService {
   }
 
   // Get trade statistics for a user
-  async getStatistics(userId: string) {
+  async getStatistics(userId: string, portfolioId?: string) {
+    const where: any = {
+      userId,
+      status: 'CLOSED',
+      netProfitLoss: { not: null },
+    };
+
+    // Add portfolio filter if provided
+    if (portfolioId) {
+      where.portfolioId = portfolioId;
+    }
+
     const trades = await this.prisma.trade.findMany({
-      where: {
-        userId,
-        status: 'CLOSED',
-        netProfitLoss: { not: null },
-      },
+      where,
     });
 
     if (trades.length === 0) {

@@ -34,6 +34,11 @@ enum TagType {
   OTHER
 }
 
+enum AccountType {
+  REAL
+  DEMO
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -128,6 +133,7 @@ model Portfolio {
   initialBalance Decimal  @db.Decimal(18, 8)
   currentBalance Decimal  @db.Decimal(18, 8)
   currency       String   @default("USD")
+  accountType    AccountType @default(DEMO)  // Real or Demo account
   
   // Timestamps
   createdAt      DateTime @default(now())

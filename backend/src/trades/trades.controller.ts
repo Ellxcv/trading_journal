@@ -37,8 +37,8 @@ export class TradesController {
   }
 
   @Get('statistics')
-  getStatistics(@CurrentUser() user: any) {
-    return this.tradesService.getStatistics(user.id);
+  getStatistics(@CurrentUser() user: any, @Query('portfolioId') portfolioId?: string) {
+    return this.tradesService.getStatistics(user.id, portfolioId);
   }
 
   @Get(':id')

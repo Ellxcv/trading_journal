@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 import { queryClient } from './lib/queryClient';
 import { AuthProvider } from './contexts/AuthContext';
 import { FilterProvider } from './contexts/FilterContext';
+import { PortfolioProvider } from './contexts/PortfolioContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/layout';
 
@@ -27,7 +28,8 @@ function App() {
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <FilterProvider>
+          <PortfolioProvider>
+            <FilterProvider>
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<LoginPage />} />
@@ -97,6 +99,7 @@ function App() {
             theme="dark"
           />
           </FilterProvider>
+        </PortfolioProvider>
         </AuthProvider>
       </QueryClientProvider>
     </BrowserRouter>

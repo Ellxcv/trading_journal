@@ -50,6 +50,11 @@ export const tradesApi = {
       if (filters.profitLoss === 'LOSS') params.append('profitability', 'losing');
     }
     
+    // Add portfolio filter if provided
+    if (filters?.portfolioId) {
+      params.append('portfolioId', filters.portfolioId);
+    }
+    
     // Set high limit to get all trades (backend default is 10)
     params.append('limit', '1000');
     params.append('page', '1');
@@ -86,14 +91,23 @@ export const tradesApi = {
   },
 
   // Get trade statistics
-  async getStatistics(): Promise<{
+  async getStatistics(filters?: { portfolioId?: string | null }): Promise<{
     totalTrades: number;
     openTrades: number;
     winRate: number;
     totalPnL: number;
     profitFactor: number;
   }> {
-    const { data } = await api.get('/trades/statistics');
+    const params = new URLSearchParams();
+    
+    if (filters?.portfolioId) {
+      params.append('portfolioId', filters.portfolioId);
+    }
+    
+    const queryString = params.toString();
+    const url = queryString ? `/trades/statistics?${queryString}` : '/trades/statistics';
+    const { data } = await api.get(url);
+    
     return {
       totalTrades: data.totalTrades || 0,
       openTrades: 0, // Will be calculated from data

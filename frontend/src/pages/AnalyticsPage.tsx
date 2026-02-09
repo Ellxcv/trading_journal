@@ -20,6 +20,7 @@ import {
   DayOfWeekChart,
   HourTradesModal
 } from '../components/analytics';
+import { usePortfolio } from '../contexts/PortfolioContext';
 
 type TimePeriod = 'week' | 'month' | 'quarter' | 'year' | 'all';
 
@@ -27,10 +28,13 @@ export const AnalyticsPage: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('month');
   const [selectedHour, setSelectedHour] = useState<number | null>(null);
 
-  // Fetch all trades
+  // Get selected portfolio from context
+  const { selectedPortfolio } = usePortfolio();
+
+  // Fetch all trades (filtered by portfolio if selected)
   const { data: trades = [], isLoading } = useQuery({
-    queryKey: ['trades'],
-    queryFn: () => tradesApi.getAll({ search: '' }),
+    queryKey: ['trades', selectedPortfolio?.id],
+    queryFn: () => tradesApi.getAll({ search: '', portfolioId: selectedPortfolio?.id }),
   });
 
   // Calculate performance metrics based on selected period

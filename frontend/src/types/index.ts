@@ -23,3 +23,7 @@ export interface RegisterData {
 
 // Trade types
 export type { Trade, TradeFilters, TradeFormData } from './trade';
+
+// Portfolio types
+export type { Portfolio, PortfolioStats, CreatePortfolioPayload, UpdatePortfolioPayload } from './portfolio';
+export { AccountType } from './portfolio';

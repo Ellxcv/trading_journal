@@ -32,7 +32,7 @@ export interface Trade {
     url: string;
     uploadedAt: string;
   }>;
-  portfolioId?: number;
+  portfolioId?: string;  // Changed to string to match Portfolio.id type
   createdAt: string;
   updatedAt: string;
 }
@@ -45,6 +45,7 @@ export interface TradeFilters {
   direction?: 'ALL' | 'LONG' | 'SHORT';
   profitLoss?: 'ALL' | 'PROFIT' | 'LOSS';
   tags?: string[];
+  portfolioId?: string | null;
 }
 
 export interface TradeFormData {
@@ -74,5 +75,5 @@ export interface TradeFormData {
     url: string;
     uploadedAt: string;
   }>;
-  portfolioId?: number;
+  portfolioId?: string;  // Changed to string to match Portfolio.id type
 }

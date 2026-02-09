@@ -10,19 +10,23 @@ import {
 } from '../components/dashboard';
 import { tradesApi } from '../services/tradesApi';
 import { Trade } from '../types/trade';
+import { usePortfolio } from '../contexts/PortfolioContext';
 
 export const DashboardPage: React.FC = () => {
-  // Fetch all trades
+  // Get selected portfolio from context
+  const { selectedPortfolio } = usePortfolio();
+
+  // Fetch all trades (filtered by portfolio if selected)
   const { data: trades = [], isLoading: tradesLoading } = useQuery({
-    queryKey: ['trades'],
-    queryFn: () => tradesApi.getAll(),
+    queryKey: ['trades', selectedPortfolio?.id],
+    queryFn: () => tradesApi.getAll({ search: '', portfolioId: selectedPortfolio?.id }),
     retry: 1,
   });
 
-  // Fetch statistics
+  // Fetch statistics (filtered by portfolio if selected)
   const { data: statistics, isLoading: statsLoading } = useQuery({
-    queryKey: ['trades-statistics'],
-    queryFn: () => tradesApi.getStatistics(),
+    queryKey: ['trades-statistics', selectedPortfolio?.id],
+    queryFn: () => tradesApi.getStatistics({ portfolioId: selectedPortfolio?.id }),
     retry: 1,
   });
 

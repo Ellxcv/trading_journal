@@ -7,6 +7,7 @@ import { StatCard } from '../components/dashboard';
 import { Button, Modal } from '../components/ui';
 import { ParsedTrade } from '../utils/tradeParser';
 import { tradesApi } from '../services/tradesApi';
+import { usePortfolio } from '../contexts/PortfolioContext';
 
 export const TradesPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -26,14 +27,17 @@ export const TradesPage: React.FC = () => {
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
   
+  // Get selected portfolio from context
+  const { selectedPortfolio } = usePortfolio();
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Fetch trades with filters
+  // Fetch trades with filters and portfolio filter
   const { data: trades = [], isLoading, error, isFetching } = useQuery({
-    queryKey: ['trades', filters],
-    queryFn: () => tradesApi.getAll(filters),
+    queryKey: ['trades', filters, selectedPortfolio?.id],
+    queryFn: () => tradesApi.getAll({ ...filters, portfolioId: selectedPortfolio?.id }),
     retry: 1,
     staleTime: 30000, // Data stays fresh for 30 seconds
     refetchOnWindowFocus: false, // Don't refetch when window regains focus
@@ -212,6 +216,7 @@ export const TradesPage: React.FC = () => {
       commission: parsed.commission,
       swap: parsed.swap,
       netProfitLoss: parsed.netPnL, // Backend expects 'netProfitLoss' not 'netPnL'
+      portfolioId: selectedPortfolio?.id, // Auto-assign to selected portfolio
     }));
 
     bulkImportMutation.mutate(tradesToImport);

@@ -1,7 +1,10 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { DollarSign, Calendar, Wallet } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useFilters } from '../../hooks';
+import { usePortfolio } from '../../contexts/PortfolioContext';
+import { portfoliosApi } from '../../lib/api/portfolios';
 
 // Helper to get page title from path
 const getPageTitle = (pathname: string): string => {
@@ -24,18 +27,20 @@ export const Header: React.FC = () => {
     currency, 
     setCurrency, 
     dateRange, 
-    setDateRange, 
-    selectedAccount, 
-    setSelectedAccount 
+    setDateRange 
   } = useFilters();
 
-  // Mock data - will be replaced with real data from API
+  // Use global portfolio context
+  const { selectedPortfolio, setSelectedPortfolio } = usePortfolio();
+
+  // Fetch portfolios
+  const { data: portfolios } = useQuery({
+    queryKey: ['portfolios'],
+    queryFn: () => portfoliosApi.getPortfolios(),
+  });
+
+  // Mock data for currency and date range
   const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'IDR'];
-  const accounts = [
-    { id: 'main', name: 'Main Account', balance: '$10,245' },
-    { id: 'demo', name: 'Demo Account', balance: '$50,000' },
-    { id: 'swing', name: 'Swing Trading', balance: '$5,120' },
-  ];
   const dateRanges = ['Today', 'This Week', 'This Month', 'This Year', 'All Time', 'Custom'];
 
   return (
@@ -85,18 +90,24 @@ export const Header: React.FC = () => {
           </button>
         </div>
 
-        {/* Trading Account Selector */}
+        {/* Portfolio Selector */}
         <div className="relative">
-          <button className="flex items-center gap-2 px-3 py-2 bg-[var(--color-surface-light)] hover:bg-[var(--color-border)] rounded-lg transition-colors min-w-[180px]">
+          <button className="flex items-center gap-2 px-3 py-2 bg-[var(--color-surface-light)] hover:bg-[var(--color-border)] rounded-lg transition-colors min-w-[200px]">
             <Wallet size={18} className="text-[var(--color-primary)]" />
             <select
-              value={selectedAccount}
-              onChange={(e) => setSelectedAccount(e.target.value)}
+              value={selectedPortfolio?.id || ''}
+              onChange={(e) => {
+                const portfolio = portfolios?.find(p => p.id === e.target.value);
+                setSelectedPortfolio(portfolio || null);
+              }}
               className="bg-transparent text-sm font-medium text-[var(--color-text-primary)] outline-none cursor-pointer flex-1"
             >
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id} className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">
-                  {account.name}
+              <option value="" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">
+                All Portfolios
+              </option>
+              {portfolios?.map((portfolio) => (
+                <option key={portfolio.id} value={portfolio.id} className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">
+                  {portfolio.name} ({portfolio.accountType})
                 </option>
               ))}
             </select>

@@ -20,7 +20,19 @@ export const TradeImport: React.FC<TradeImportProps> = ({ onImport, onCancel }) 
     setFileName(file.name);
 
     try {
-      const content = await file.text();
+      // Read as ArrayBuffer first to detect encoding (MT5 exports use UTF-16LE)
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let content: string;
+
+      // Check for UTF-16LE BOM (0xFF 0xFE)
+      if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
+        const decoder = new TextDecoder('utf-16le');
+        content = decoder.decode(buffer);
+      } else {
+        content = await file.text();
+      }
+
       let trades: ParsedTrade[] = [];
 
       // Detect file type and parse accordingly

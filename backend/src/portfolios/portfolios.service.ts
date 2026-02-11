@@ -185,34 +185,32 @@ export class PortfoliosService {
       },
     });
 
+    // Calculate statistics from trades
     const totalTrades = trades.length;
-    const winningTrades = trades.filter(t => (t.netProfitLoss?.toNumber() || 0) > 0).length;
-    const losingTrades = trades.filter(t => (t.netProfitLoss?.toNumber() || 0) < 0).length;
-    const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
+    const winningTrades = trades.filter(t => Number(t.netProfitLoss) > 0);
+    const losingTrades = trades.filter(t => Number(t.netProfitLoss) < 0);
+    const totalPnL = trades.reduce((sum, t) => sum + Number(t.netProfitLoss || 0), 0);
+    const totalGrossPnL = trades.reduce((sum, t) => sum + Number(t.profitLoss || 0), 0);
+    const totalCommission = trades.reduce((sum, t) => sum + Number(t.commission || 0), 0);
+    
+    const totalWins = winningTrades.reduce((sum, t) => sum + Number(t.netProfitLoss), 0);
+    const totalLosses = Math.abs(losingTrades.reduce((sum, t) => sum + Number(t.netProfitLoss), 0));
+    
+    const profitFactor = totalLosses > 0 ? totalWins / totalLosses : (totalWins > 0 ? Infinity : 0);
 
-    const totalPnL = trades.reduce((sum, t) => sum + (t.netProfitLoss?.toNumber() || 0), 0);
-    const totalGrossPnL = trades.reduce((sum, t) => sum + (t.profitLoss?.toNumber() || 0), 0);
-    const totalCommission = trades.reduce((sum, t) => sum + (t.commission?.toNumber() || 0), 0);
-
-    const grossProfit = trades
-      .filter(t => (t.profitLoss?.toNumber() || 0) > 0)
-      .reduce((sum, t) => sum + (t.profitLoss?.toNumber() || 0), 0);
-
-    const grossLoss = Math.abs(
-      trades
-        .filter(t => (t.profitLoss?.toNumber() || 0) < 0)
-        .reduce((sum, t) => sum + (t.profitLoss?.toNumber() || 0), 0)
-    );
-
-    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+    // Calculate current balance = initial balance + total P&L
+    const currentBalance = Number(portfolio.initialBalance) + totalPnL;
 
     return {
-      portfolio,
+      portfolio: {
+        ...portfolio,
+        currentBalance, // Use calculated balance instead of stored value
+      },
       stats: {
         totalTrades,
-        winningTrades,
-        losingTrades,
-        winRate: Math.round(winRate * 100) / 100,
+        winningTrades: winningTrades.length,
+        losingTrades: losingTrades.length,
+        winRate: totalTrades > 0 ? (winningTrades.length / totalTrades) * 100 : 0,
         totalPnL: Math.round(totalPnL * 100) / 100,
         totalGrossPnL: Math.round(totalGrossPnL * 100) / 100,
         totalCommission: Math.round(totalCommission * 100) / 100,
